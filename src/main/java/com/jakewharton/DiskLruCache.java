@@ -100,7 +100,8 @@ public final class DiskLruCache implements Closeable {
     private static final String DIRTY = "DIRTY";
     private static final String REMOVE = "REMOVE";
     private static final String READ = "READ";
-
+    private static DiskLruCache sharedDiskCache; 
+    
     /* XXX From java.util.Arrays */
     @SuppressWarnings("unchecked")
     private static <T> T[] copyOfRange(T[] original, int start, int end) {
@@ -274,6 +275,16 @@ public final class DiskLruCache implements Closeable {
     }
 
     /**
+     * Allows all components of the application to acess a shared caching service
+     * You must call {@link DiskLruCache#open(File, int, int, long)} to actually
+     * create the static instance.
+     * @return DiskLruCache A static instance of a cache
+     */
+    public synchronized static DiskLruCache getSharedDiskCache() {
+    	return sharedDiskCache;
+    }
+    
+    /**
      * Opens the cache in {@code directory}, creating a cache if none exists
      * there.
      *
@@ -311,6 +322,11 @@ public final class DiskLruCache implements Closeable {
         directory.mkdirs();
         cache = new DiskLruCache(directory, appVersion, valueCount, maxSize);
         cache.rebuildJournal();
+        
+        synchronized (DiskLruCache.class) {
+        	sharedDiskCache = cache;
+        }
+        
         return cache;
     }
 
@@ -466,9 +482,13 @@ public final class DiskLruCache implements Closeable {
          * from different edits.
          */
         InputStream[] ins = new InputStream[valueCount];
+        // report underlying file paths as well
+        File[] files = new File[valueCount];
+        
         try {
             for (int i = 0; i < valueCount; i++) {
-                ins[i] = new FileInputStream(entry.getCleanFile(i));
+            	files[i] = entry.getCleanFile(i);
+                ins[i] = new FileInputStream(files[i]);
             }
         } catch (FileNotFoundException e) {
             // a file must have been deleted manually!
@@ -481,7 +501,7 @@ public final class DiskLruCache implements Closeable {
             executorService.submit(cleanupCallable);
         }
 
-        return new Snapshot(key, entry.sequenceNumber, ins);
+        return new Snapshot(key, entry.sequenceNumber, ins, files);
     }
 
     /**
@@ -708,11 +728,13 @@ public final class DiskLruCache implements Closeable {
         private final String key;
         private final long sequenceNumber;
         private final InputStream[] ins;
-
-        private Snapshot(String key, long sequenceNumber, InputStream[] ins) {
+        private final File[] files;
+        
+        private Snapshot(String key, long sequenceNumber, InputStream[] ins, File[] files) {
             this.key = key;
             this.sequenceNumber = sequenceNumber;
             this.ins = ins;
+            this.files = files;
         }
 
         /**
@@ -731,6 +753,13 @@ public final class DiskLruCache implements Closeable {
             return ins[index];
         }
 
+        /*
+         * Returns the actual FS path of a given input stream at {@code index}
+         */
+        public File getInputStreamFile(int index) {
+        	return files[index];
+        }
+        
         /**
          * Returns the string value for {@code index}.
          */
