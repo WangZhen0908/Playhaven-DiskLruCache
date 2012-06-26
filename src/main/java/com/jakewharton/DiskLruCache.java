@@ -303,8 +303,13 @@ public final class DiskLruCache implements Closeable {
             throw new IllegalArgumentException("valueCount <= 0");
         }
 
+        
         // prefer to pick up where we left off
         DiskLruCache cache = new DiskLruCache(directory, appVersion, valueCount, maxSize);
+        synchronized (DiskLruCache.class) {
+        	sharedDiskCache = cache;
+        }
+        
         if (cache.journalFile.exists()) {
             try {
                 cache.readJournal();
@@ -322,11 +327,7 @@ public final class DiskLruCache implements Closeable {
         directory.mkdirs();
         cache = new DiskLruCache(directory, appVersion, valueCount, maxSize);
         cache.rebuildJournal();
-        
-        synchronized (DiskLruCache.class) {
-        	sharedDiskCache = cache;
-        }
-        
+
         return cache;
     }
 
@@ -947,13 +948,19 @@ public final class DiskLruCache implements Closeable {
         private IOException invalidLengths(String[] strings) throws IOException {
             throw new IOException("unexpected journal line: " + Arrays.toString(strings));
         }
-
+        
+        private String cleanKey(String key) {
+        	return key.replace(File.separator, "_");
+        }
+        
         public File getCleanFile(int i) {
-            return new File(directory, key + "." + i);
+        	// strip out the file separator to avoid invalid paths
+            return new File(directory, cleanKey(key) + "." + i);
         }
 
         public File getDirtyFile(int i) {
-            return new File(directory, key + "." + i + ".tmp");
+        	// strip out the file separator to avoid invalid paths
+            return new File(directory, cleanKey(key) + "." + i + ".tmp");
         }
     }
 }
