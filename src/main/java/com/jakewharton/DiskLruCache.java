@@ -90,7 +90,7 @@ import java.util.concurrent.TimeUnit;
  * Callers should handle other problems by catching {@code IOException} and
  * responding appropriately.
  */
-public final class DiskLruCache implements Closeable {
+public class DiskLruCache implements Closeable {
     static final String JOURNAL_FILE = "journal";
     static final String JOURNAL_FILE_TMP = "journal.tmp";
     static final String MAGIC = "libcore.io.DiskLruCache";
@@ -265,7 +265,18 @@ public final class DiskLruCache implements Closeable {
         }
     };
 
-    private DiskLruCache(File directory, int appVersion, int valueCount, long maxSize) {
+    public DiskLruCache() {
+    	super();
+    	this.directory = null;
+        this.appVersion = -1;
+        this.journalFile = null;
+        this.journalFileTmp = null;
+        this.valueCount = -1;
+        this.maxSize = -1;
+    	// no - op (for testing)
+    }
+    
+    public DiskLruCache(File directory, int appVersion, int valueCount, long maxSize) {
         this.directory = directory;
         this.appVersion = appVersion;
         this.journalFile = new File(directory, JOURNAL_FILE);
@@ -285,16 +296,22 @@ public final class DiskLruCache implements Closeable {
     }
     
     /**
-     * Opens the cache in {@code directory}, creating a cache if none exists
-     * there.
-     *
+     * Creates the shared DiskLruCache instance
      * @param directory a writable directory
      * @param appVersion
      * @param valueCount the number of values per cache entry. Must be positive.
      * @param maxSize the maximum number of bytes this cache should use to store
+     */
+    public synchronized static void createSharedDiskCache(File directory, int appVersion, int valueCount, long maxSize) {
+    	sharedDiskCache = new DiskLruCache(directory, appVersion, valueCount, maxSize);
+    }
+    /**
+     * Opens the cache in {@code directory}, creating a cache if none exists
+     * there.
+     *
      * @throws IOException if reading or writing the cache directory fails
      */
-    public static DiskLruCache open(File directory, int appVersion, int valueCount, long maxSize)
+    public void open()
             throws IOException {
         if (maxSize <= 0) {
             throw new IllegalArgumentException("maxSize <= 0");
@@ -302,33 +319,23 @@ public final class DiskLruCache implements Closeable {
         if (valueCount <= 0) {
             throw new IllegalArgumentException("valueCount <= 0");
         }
-
         
-        // prefer to pick up where we left off
-        DiskLruCache cache = new DiskLruCache(directory, appVersion, valueCount, maxSize);
-        synchronized (DiskLruCache.class) {
-        	sharedDiskCache = cache;
-        }
-        
-        if (cache.journalFile.exists()) {
+        if (journalFile.exists()) {
             try {
-                cache.readJournal();
-                cache.processJournal();
-                cache.journalWriter = new BufferedWriter(new FileWriter(cache.journalFile, true));
-                return cache;
+                readJournal();
+                processJournal();
+                journalWriter = new BufferedWriter(new FileWriter(journalFile, true));
+                return;
             } catch (IOException journalIsCorrupt) {
                 System.out.println("DiskLruCache " + directory + " is corrupt: "
                         + journalIsCorrupt.getMessage() + ", removing");
-                cache.delete();
+                delete();
             }
         }
 
         // create a new empty cache
         directory.mkdirs();
-        cache = new DiskLruCache(directory, appVersion, valueCount, maxSize);
-        cache.rebuildJournal();
-
-        return cache;
+        rebuildJournal();
     }
 
     private void readJournal() throws IOException {
@@ -778,11 +785,11 @@ public final class DiskLruCache implements Closeable {
     /**
      * Edits the values for an entry.
      */
-    public final class Editor {
+    public class Editor {
         private final Entry entry;
         private boolean hasErrors;
 
-        private Editor(Entry entry) {
+        public Editor(Entry entry) {
             this.entry = entry;
         }
 
@@ -900,7 +907,7 @@ public final class DiskLruCache implements Closeable {
         }
     }
 
-    private final class Entry {
+    protected class Entry {
         private final String key;
 
         /** Lengths of this entry's files. */
@@ -915,7 +922,7 @@ public final class DiskLruCache implements Closeable {
         /** The sequence number of the most recently committed edit to this entry. */
         private long sequenceNumber;
 
-        private Entry(String key) {
+        public Entry(String key) {
             this.key = key;
             this.lengths = new long[valueCount];
         }
