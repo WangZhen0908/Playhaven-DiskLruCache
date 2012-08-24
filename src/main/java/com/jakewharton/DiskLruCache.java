@@ -273,8 +273,8 @@ public class DiskLruCache implements Closeable {
         this.appVersion = -1;
         this.journalFile = null;
         this.journalFileTmp = null;
-        this.valueCount = -1;
-        this.maxSize = -1;
+        this.valueCount = 1;
+        this.maxSize = 1024;
     	// no - op (for testing)
     }
     
