@@ -47,6 +47,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.playhaven.src.common.PHCrashReport;
+
 /**
  * A cache that uses a bounded amount of space on a filesystem. Each cache
  * entry has a string key and a fixed number of values. Values are byte
@@ -304,6 +306,12 @@ public class DiskLruCache implements Closeable {
      */
     public synchronized static void createSharedDiskCache(File directory, int appVersion, int valueCount, long maxSize) {
     	sharedDiskCache = new DiskLruCache(directory, appVersion, valueCount, maxSize);
+    	try {
+    		sharedDiskCache.open();
+    	} catch (Exception e) {
+    		PHCrashReport.reportCrash(e, "DiskLruCache - createSharedDiskCache", PHCrashReport.Urgency.low);
+    	}
+    	
     }
     /**
      * Opens the cache in {@code directory}, creating a cache if none exists
