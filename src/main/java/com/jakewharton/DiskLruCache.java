@@ -346,7 +346,7 @@ public class DiskLruCache implements Closeable {
         rebuildJournal();
     }
 
-    private void readJournal() throws IOException {
+    public void readJournal() throws IOException {
         InputStream in = new BufferedInputStream(new FileInputStream(journalFile));
         try {
             String magic = /*Streams.*/readAsciiLine(in);
@@ -375,7 +375,7 @@ public class DiskLruCache implements Closeable {
         }
     }
 
-    private void readJournalLine(String line) throws IOException {
+    public void readJournalLine(String line) throws IOException {
         String[] parts = line.split(" ");
         if (parts.length < 2) {
             throw new IOException("unexpected journal line: " + line);
@@ -410,7 +410,7 @@ public class DiskLruCache implements Closeable {
      * Computes the initial size and collects garbage as a part of opening the
      * cache. Dirty entries are assumed to be inconsistent and will be deleted.
      */
-    private void processJournal() throws IOException {
+    public void processJournal() throws IOException {
         deleteIfExists(journalFileTmp);
         for (Iterator<Entry> i = lruEntries.values().iterator(); i.hasNext(); ) {
             Entry entry = i.next();
@@ -433,7 +433,7 @@ public class DiskLruCache implements Closeable {
      * Creates a new journal that omits redundant information. This replaces the
      * current journal if it exists.
      */
-    private synchronized void rebuildJournal() throws IOException {
+    public synchronized void rebuildJournal() throws IOException {
         if (journalWriter != null) {
             journalWriter.close();
         }
@@ -463,13 +463,6 @@ public class DiskLruCache implements Closeable {
     }
 
     private static void deleteIfExists(File file) throws IOException {
-        /*try {
-            Libcore.os.remove(file.getPath());
-        } catch (ErrnoException errnoException) {
-            if (errnoException.errno != OsConstants.ENOENT) {
-                throw errnoException.rethrowAsIOException();
-            }
-        }*/
         if (file.exists() && !file.delete()) {
             throw new IOException();
         }
@@ -528,7 +521,7 @@ public class DiskLruCache implements Closeable {
         return edit(key, ANY_SEQUENCE_NUMBER);
     }
 
-    private synchronized Editor edit(String key, long expectedSequenceNumber) throws IOException {
+    public synchronized Editor edit(String key, long expectedSequenceNumber) throws IOException {
         checkNotClosed();
         validateKey(key);
         Entry entry = lruEntries.get(key);
@@ -576,7 +569,7 @@ public class DiskLruCache implements Closeable {
         return size;
     }
 
-    private synchronized void completeEdit(Editor editor, boolean success) throws IOException {
+    public synchronized void completeEdit(Editor editor, boolean success) throws IOException {
         Entry entry = editor.entry;
         if (entry.currentEditor != editor) {
             throw new IllegalStateException();
