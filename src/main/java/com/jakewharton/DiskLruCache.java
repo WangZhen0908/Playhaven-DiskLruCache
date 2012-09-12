@@ -327,6 +327,8 @@ public class DiskLruCache implements Closeable {
         if (valueCount <= 0) {
             throw new IllegalArgumentException("valueCount <= 0");
         }
+
+        size = 0;
         
         if (journalFile.exists()) {
             try {
