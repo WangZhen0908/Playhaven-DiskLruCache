@@ -735,13 +735,13 @@ public class DiskLruCache implements Closeable {
     /**
      * A snapshot of the values for an entry.
      */
-    public final class Snapshot implements Closeable {
+    public class Snapshot implements Closeable {
         private final String key;
         private final long sequenceNumber;
         private final InputStream[] ins;
         private final File[] files;
         
-        private Snapshot(String key, long sequenceNumber, InputStream[] ins, File[] files) {
+        public Snapshot(String key, long sequenceNumber, InputStream[] ins, File[] files) {
             this.key = key;
             this.sequenceNumber = sequenceNumber;
             this.ins = ins;
