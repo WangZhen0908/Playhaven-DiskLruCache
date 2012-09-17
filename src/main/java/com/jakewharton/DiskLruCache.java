@@ -297,6 +297,15 @@ public class DiskLruCache implements Closeable {
     	return sharedDiskCache;
     }
     
+    
+    /**
+     * Set the shared cache, only meant for testing purposes.
+     * @param cache
+     */
+    public synchronized static void setSharedDiskCache(DiskLruCache cache) {
+        sharedDiskCache = cache;
+    }
+    
     /**
      * Creates the shared DiskLruCache instance
      * @param directory a writable directory
